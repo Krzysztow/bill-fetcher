@@ -1,8 +1,9 @@
 import datetime
+import os
+from dataclasses import dataclass
 from datetime import date
 
 import requests
-from dataclasses import dataclass
 from selenium import webdriver as wd
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
@@ -111,8 +112,8 @@ def get_last_bill_info(webdriver_location, username, password) -> BillInfoResult
 
 def main():
     webdriver_location = "/tmp/chromedriver/chromedriver"
-    username = ""
-    password = ""
+    username = os.getenv("HO_USERNAME")
+    password = os.getenv("HO_PASSWORD")
 
     result = get_last_bill_info(webdriver_location, username, password)
     print(f"Finished successfully: {result}")
