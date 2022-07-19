@@ -8,8 +8,6 @@ from selenium import webdriver as wd
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
-from selenium.webdriver.support import expected_conditions as ec
-from selenium.webdriver.support.ui import WebDriverWait
 
 
 @dataclass(frozen=True)
@@ -91,12 +89,13 @@ def retrieve_last_bill_pdf(driver, right_col, out_pdf_path):
 
 def get_last_bill_info(webdriver_location, username, password) -> BillInfoResult:
     with wd.Chrome(webdriver_location) as driver:
+        driver.implicitly_wait(10)
         driver.get("https://hyperoptic.com/myaccount-login/")
 
         accept_cookies(driver)
         fill_and_submit_login_form(driver, username, password)
 
-        WebDriverWait(driver, 10).until(ec.presence_of_element_located((By.ID, "right-column")))
+        #WebDriverWait(driver, 10).until(ec.presence_of_element_located((By.ID, "right-column")))
         right_col = driver.find_element(By.ID, "right-column")
         left_col = driver.find_element(By.ID, "left-column")
 
