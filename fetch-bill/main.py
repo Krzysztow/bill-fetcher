@@ -1,8 +1,6 @@
 import datetime
 import logging
 import os
-from dataclasses import dataclass
-from datetime import date
 
 import requests
 from selenium import webdriver as wd
@@ -12,21 +10,10 @@ from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
+from bill_info_result import BillInfo, BillInfoResult
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-
-@dataclass(frozen=True)
-class BillInfo:
-    service_name: str
-    invoice_value: str
-    invoice_date: date
-
-
-@dataclass(frozen=True)
-class BillInfoResult:
-    bill_info: BillInfo
-    pdf_location: str
 
 
 class BillFetcher:
@@ -34,10 +21,10 @@ class BillFetcher:
 
     def __init__(self, webdriver_location: str):
         opts = Options()
-        opts.add_argument("--headless")
+        # opts.add_argument("--headless")
         opts.add_argument('--no-sandbox')
         opts.add_argument('--disable-dev-shm-usage')
-        srvc = Service()
+        srvc = Service(executable_path=webdriver_location)
         self._driver = wd.Chrome(options=opts, service=srvc)
 
     def __enter__(self):
@@ -134,14 +121,14 @@ class BillFetcher:
         )
 
 
-def ensureNonEmpty(value: str, hint_name: str):
+def ensure_non_empty(value: str, hint_name: str):
     if not value:
         raise ValueError(f"{hint_name} can not be empty!")
 
 
 def fetch_bill(username: str, password: str, webdriver_location: str | None):
-    ensureNonEmpty(username, "username[HO_USERNAME]")
-    ensureNonEmpty(password, "username[HO_PASSWORD]")
+    ensure_non_empty(username, "username[HO_USERNAME]")
+    ensure_non_empty(password, "username[HO_PASSWORD]")
 
     logging.info("Starting fetcher...")
     with BillFetcher(webdriver_location) as fetcher:
@@ -150,10 +137,11 @@ def fetch_bill(username: str, password: str, webdriver_location: str | None):
 
 
 def main():
-    webdriver_location = None
+    webdriver_location = "/tmp/chromedriver/chromedriver"
     username = os.getenv("HO_USERNAME")
     password = os.getenv("HO_PASSWORD")
 
     fetch_bill(username, password, webdriver_location)
+
 
 main()
