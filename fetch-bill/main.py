@@ -19,13 +19,12 @@ logger.setLevel(logging.INFO)
 class BillFetcher:
     _driver: WebDriver
 
-    def __init__(self, webdriver_location: str):
+    def __init__(self):
         opts = Options()
-        # opts.add_argument("--headless")
+        opts.add_argument("--headless")
         opts.add_argument('--no-sandbox')
         opts.add_argument('--disable-dev-shm-usage')
-        srvc = Service(executable_path=webdriver_location)
-        self._driver = wd.Chrome(options=opts, service=srvc)
+        self._driver = wd.Chrome(options=opts)
 
     def __enter__(self):
         return self
@@ -126,22 +125,21 @@ def ensure_non_empty(value: str, hint_name: str):
         raise ValueError(f"{hint_name} can not be empty!")
 
 
-def fetch_bill(username: str, password: str, webdriver_location: str | None):
+def fetch_bill(username: str, password: str):
     ensure_non_empty(username, "username[HO_USERNAME]")
     ensure_non_empty(password, "username[HO_PASSWORD]")
 
     logging.info("Starting fetcher...")
-    with BillFetcher(webdriver_location) as fetcher:
+    with BillFetcher() as fetcher:
         result = fetcher.get_last_bill_info(username, password)
     logging.info(f"Finished successfully: {result}")
 
 
 def main():
-    webdriver_location = "/tmp/chromedriver/chromedriver"
     username = os.getenv("HO_USERNAME")
     password = os.getenv("HO_PASSWORD")
 
-    fetch_bill(username, password, webdriver_location)
+    fetch_bill(username, password)
 
 
 main()
