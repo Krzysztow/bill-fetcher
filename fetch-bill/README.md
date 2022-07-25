@@ -21,7 +21,10 @@ HO_PASSWORD=<hyperoptic_password> HO_USERNAME=<hyperoptic_username> python3 fetc
 read -s HO_PASSWORD
 
 docker build -t fetcher .
+
 docker container run -it -eHO_USERNAME=chris.wielgo@gmail.com -eHO_PASSWORD=$HO_PASSWORD --rm fetcher
+# or like below with CPU & mem constraints
+docker container run -it -m2g --cpus=1 -eHO_USERNAME=chris.wielgo@gmail.com -eHO_PASSWORD=$HO_PASSWORD --rm fetcher   
 ```
 
 At the moment output is provided to `/tmp/requests.pdf`
