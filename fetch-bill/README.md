@@ -13,7 +13,7 @@
 
 ### Running directly with python:
 ```bash
-HO_PASSWORD=<hyperoptic_password> HO_USERNAME=<hyperoptic_username> python3 fetch-bill/main.py
+HO_PASSWORD=<hyperoptic_password> HO_USERNAME=<hyperoptic_username> python3 fetch-bill/main_fetcher.py
 ``` 
 
 ### Runnigng with docker:

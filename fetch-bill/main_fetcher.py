@@ -5,14 +5,13 @@ import os
 import requests
 from selenium import webdriver as wd
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
 from bill_info_result import BillInfo, BillInfoResult
 
-logger = logging.getLogger()
+logger = logging.getLogger("selenium-fetcher")
 logger.setLevel(logging.INFO)
 
 
@@ -99,18 +98,17 @@ class BillFetcher:
         with open(out_pdf_path, mode="wb") as f:
             f.write(response.content)
 
-    def get_last_bill_info(self, username, password) -> BillInfoResult:
+    def get_last_bill_info(self, username: str, password: str, pdf_location: str) -> BillInfoResult:
         self._driver.implicitly_wait(10)
         self._driver.get("https://hyperoptic.com/myaccount-login/")
 
         self.accept_cookies()
         self.fill_and_submit_login_form(username, password)
 
-        #WebDriverWait(driver, 10).until(ec.presence_of_element_located((By.ID, "right-column")))
+        # WebDriverWait(driver, 10).until(ec.presence_of_element_located((By.ID, "right-column")))
         right_col = self._driver.find_element(By.ID, "right-column")
         left_col = self._driver.find_element(By.ID, "left-column")
 
-        pdf_location = "/tmp/requests.pdf"
         last_bill_data = self.retrieve_last_bill_data(left_col, right_col)
         self.retrieve_last_bill_pdf(right_col, pdf_location)
 
@@ -125,21 +123,23 @@ def ensure_non_empty(value: str, hint_name: str):
         raise ValueError(f"{hint_name} can not be empty!")
 
 
-def fetch_bill(username: str, password: str):
+def fetch_bill(username: str, password: str, pdf_location: str) -> BillInfoResult:
     ensure_non_empty(username, "username[HO_USERNAME]")
     ensure_non_empty(password, "username[HO_PASSWORD]")
 
-    logging.info("Starting fetcher...")
+    logger.info("Starting fetcher...")
     with BillFetcher() as fetcher:
-        result = fetcher.get_last_bill_info(username, password)
-    logging.info(f"Finished successfully: {result}")
+        result = fetcher.get_last_bill_info(username, password, pdf_location)
+    logger.info(f"Finished successfully: {result}")
+    return result
 
 
 def main():
     username = os.getenv("HO_USERNAME")
     password = os.getenv("HO_PASSWORD")
 
-    fetch_bill(username, password)
+    fetch_bill(username, password, "/tmp/requests.pdf")
 
 
-main()
+if __name__ == "__main__":
+    main()

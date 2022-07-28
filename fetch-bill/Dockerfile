@@ -17,4 +17,4 @@ COPY . /wd
 # docker is already a sandbox itself
 RUN python3 -m pipenv install --system
 
-ENTRYPOINT ["python3","./main.py"]
+ENTRYPOINT ["python3","./main_fetcher.py"]
