@@ -1,14 +1,10 @@
-import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-import * as sns from 'aws-cdk-lib/aws-sns';
-import * as subs from 'aws-cdk-lib/aws-sns-subscriptions';
-import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { DockerImageAsset } from 'aws-cdk-lib/aws-ecr-assets';
 import { Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { RemovalPolicy } from 'aws-cdk-lib';
-import { FargateTaskDefinition, ContainerImage, LogDriver } from 'aws-cdk-lib/aws-ecs';
+import { FargateTaskDefinition, ContainerImage, LogDriver, Cluster } from 'aws-cdk-lib/aws-ecs';
 import * as path from 'path';
-import { EcsApplication } from 'aws-cdk-lib/aws-codedeploy';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 
 export class BillFetcherStack extends Stack {
@@ -30,6 +26,11 @@ export class BillFetcherStack extends Stack {
     const fargateTaskDefinition = new FargateTaskDefinition(this, 'bill-fetcher-task-def', {
       memoryLimitMiB: 2048,
       cpu: 1024,
+    });
+
+    const cluster = new Cluster(this, 'bill-fetcher-cluster', {
+      clusterName: "bill-fetcher-cluster",
+      enableFargateCapacityProviders: true,
     });
 
     const container = fargateTaskDefinition.addContainer("bill-fetcher-container", {
