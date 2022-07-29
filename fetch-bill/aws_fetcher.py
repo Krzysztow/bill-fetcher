@@ -34,7 +34,7 @@ def upload_bill_info(bill_info_json: str, bucket: str, bucket_location: str):
 def main():
     username = os.getenv("HO_USERNAME")
     password = os.getenv("HO_PASSWORD")
-    bucket = os.getenv("S#_BUCKET")
+    bucket = os.getenv("RESULT_BUCKET_NAME")
 
     pdf_location = "/tmp/bill.pdf"
     result = fetcher.fetch_bill(username, password, pdf_location)
