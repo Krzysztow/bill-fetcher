@@ -1,7 +1,9 @@
-import { Stack, StackProps } from 'aws-cdk-lib';
+import { Duration, Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { DockerImageAsset } from 'aws-cdk-lib/aws-ecr-assets';
 import { Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
+import { EcsRunTask, EcsFargateLaunchTarget } from 'aws-cdk-lib/aws-stepfunctions-tasks'
+import * as sfn from 'aws-cdk-lib/aws-stepfunctions'
 import { RemovalPolicy } from 'aws-cdk-lib';
 import { FargateTaskDefinition, ContainerImage, LogDriver, Cluster } from 'aws-cdk-lib/aws-ecs';
 import * as path from 'path';
@@ -52,6 +54,30 @@ export class BillFetcherStack extends Stack {
     });
 
     fetcher_bucket.grantWrite(fargateTaskDefinition.taskRole);
+ 
     
+    const runTask = new EcsRunTask(this, 'run-bill-fetcher', {
+      integrationPattern: sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
+      cluster,
+      taskDefinition: fargateTaskDefinition,
+      launchTarget: new EcsFargateLaunchTarget(),
+      containerOverrides: [{
+        containerDefinition: container,
+        environment: [{ name: 'TASK_TOKEN', value: sfn.JsonPath.taskToken }],
+      }],
+    });
+
+    const success = new sfn.Succeed(this, 'We did it!');
+    const fail = new sfn.Fail(this, "Failed!");
+
+    const definition = runTask.next(success);
+
+    const billFetcherSm = new sfn.StateMachine(this, 'bill-fetcher-sm', {
+      definition,
+      timeout: Duration.minutes(1),
+    });
+
+    billFetcherSm.grantTaskResponse(fargateTaskDefinition.taskRole);
+
   }
 }
