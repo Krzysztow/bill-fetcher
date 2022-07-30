@@ -19,6 +19,7 @@ export class BillFetcherStack extends Stack {
     });
 
 
+
     const asset = new DockerImageAsset(this, 'bill-fetcher', {
       directory: path.join(__dirname, '..', '..', 'fetch-bill'),
     });

@@ -48,6 +48,12 @@ def main():
                                        pdf_location=f"arn:aws:s3:::{bucket}/{bucket_pdf_location}")
     bill_info_json = json.dumps(obj=bill_fetch_result, default=BillInfoEncoder.json_encode)
     upload_bill_info(bill_info_json, bucket, bucket_json_location)
+    task_token = os.getenv("TASK_TOKEN")
+    client = boto3.client('stepfunctions')
+    client.send_task_success(
+        taskToken=task_token,
+        output=bill_info_json
+    )
 
 
 if __name__ == "__main__":
