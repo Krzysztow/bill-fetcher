@@ -1,13 +1,15 @@
-import { Duration, Stack, StackProps } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { DockerImageAsset } from 'aws-cdk-lib/aws-ecr-assets';
 import { Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import { EcsRunTask, EcsFargateLaunchTarget } from 'aws-cdk-lib/aws-stepfunctions-tasks'
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions'
-import { RemovalPolicy } from 'aws-cdk-lib';
 import { FargateTaskDefinition, ContainerImage, LogDriver, Cluster } from 'aws-cdk-lib/aws-ecs';
 import * as path from 'path';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as py_lambda from '@aws-cdk/aws-lambda-python-alpha';
+
 
 export class BillFetcherStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -79,5 +81,12 @@ export class BillFetcherStack extends Stack {
 
     billFetcherSm.grantTaskResponse(fargateTaskDefinition.taskRole);
 
+
+    const billSenderFunction = new py_lambda.PythonFunction(this, 'bill-sender', {
+      entry: path.join(__dirname, '..', '..', 'bill-sender'),
+      runtime: lambda.Runtime.PYTHON_3_7,
+      index: 'aws_sender.py',
+      handler: 'send_bill__'
+    });
   }
 }
