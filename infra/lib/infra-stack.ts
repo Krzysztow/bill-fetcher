@@ -2,13 +2,14 @@ import { Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { DockerImageAsset } from 'aws-cdk-lib/aws-ecr-assets';
 import { Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
-import { EcsRunTask, EcsFargateLaunchTarget } from 'aws-cdk-lib/aws-stepfunctions-tasks'
+import { EcsRunTask, EcsFargateLaunchTarget, LambdaInvoke } from 'aws-cdk-lib/aws-stepfunctions-tasks'
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions'
 import { FargateTaskDefinition, ContainerImage, LogDriver, Cluster } from 'aws-cdk-lib/aws-ecs';
 import * as path from 'path';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as py_lambda from '@aws-cdk/aws-lambda-python-alpha';
+import { IntegrationPattern } from 'aws-cdk-lib/aws-stepfunctions';
 
 
 export class BillFetcherStack extends Stack {
@@ -58,6 +59,14 @@ export class BillFetcherStack extends Stack {
     fetcher_bucket.grantWrite(fargateTaskDefinition.taskRole);
  
     
+    const billSenderFunction = new py_lambda.PythonFunction(this, 'bill-sender', {
+      entry: path.join(__dirname, '..', '..', 'bill-sender'),
+      runtime: lambda.Runtime.PYTHON_3_9,
+      index: 'aws_sender.py',
+      handler: 'send_bill'
+    });
+
+
     const runTask = new EcsRunTask(this, 'run-bill-fetcher', {
       integrationPattern: sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
       cluster,
@@ -69,10 +78,18 @@ export class BillFetcherStack extends Stack {
       }],
     });
 
+    const lambdaTask = new LambdaInvoke(this, 'send-bill-lambda', {
+      lambdaFunction: billSenderFunction,
+      timeout: Duration.seconds(30),
+    });
+
+
     const success = new sfn.Succeed(this, 'We did it!');
     const fail = new sfn.Fail(this, "Failed!");
 
-    const definition = runTask.next(success);
+    const definition = runTask.
+      next(lambdaTask).
+      next(success);
 
     const billFetcherSm = new sfn.StateMachine(this, 'bill-fetcher-sm', {
       definition,
@@ -81,12 +98,5 @@ export class BillFetcherStack extends Stack {
 
     billFetcherSm.grantTaskResponse(fargateTaskDefinition.taskRole);
 
-
-    const billSenderFunction = new py_lambda.PythonFunction(this, 'bill-sender', {
-      entry: path.join(__dirname, '..', '..', 'bill-sender'),
-      runtime: lambda.Runtime.PYTHON_3_9,
-      index: 'aws_sender.py',
-      handler: 'send_bill__'
-    });
   }
 }
