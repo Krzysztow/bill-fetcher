@@ -84,7 +84,7 @@ export class BillFetcherStack extends Stack {
 
     const billSenderFunction = new py_lambda.PythonFunction(this, 'bill-sender', {
       entry: path.join(__dirname, '..', '..', 'bill-sender'),
-      runtime: lambda.Runtime.PYTHON_3_7,
+      runtime: lambda.Runtime.PYTHON_3_9,
       index: 'aws_sender.py',
       handler: 'send_bill__'
     });
