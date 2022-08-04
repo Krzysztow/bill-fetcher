@@ -4,9 +4,9 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-selenium = "*"
-requests = "*"
 boto3 = "*"
+openpyxl = "*"
+common = {path = "./../common"}
 
 [dev-packages]
 

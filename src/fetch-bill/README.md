@@ -29,3 +29,9 @@ docker container run -it -m2g --cpus=1 -eHO_USERNAME=chris.wielgo@gmail.com -eHO
 
 At the moment output is provided to `/tmp/requests.pdf`
 
+
+# Architecture
+
+
+aws_fetcher       ->      mail_sender
+  bill_fetcher
