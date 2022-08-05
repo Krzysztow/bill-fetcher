@@ -2,7 +2,6 @@ import json
 
 from bill_info_result import BillInfoDecoder, BillInfoResult
 
-
 def send_bill(event, context):
     print("Received event: " + json.dumps(event, indent=2))
 
