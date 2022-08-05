@@ -23,10 +23,9 @@ export class BillFetcherStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
-
-
     const asset = new DockerImageAsset(this, 'bill-fetcher', {
-      directory: path.join(__dirname, '..', '..', 'fetch-bill'),
+      directory: path.join(__dirname, '..', '..', 'src'),
+      file: path.join('fetch-bill', 'Dockerfile'),
     });
 
     const fargateTaskDefinition = new FargateTaskDefinition(this, 'bill-fetcher-task-def', {
@@ -53,7 +52,7 @@ export class BillFetcherStack extends Stack {
       logging: LogDriver.awsLogs({
         streamPrefix: 'bill-fetcher-container',
         logRetention: RetentionDays.ONE_DAY,
-      })
+      }),
     });
 
     fetcher_bucket.grantWrite(fargateTaskDefinition.taskRole);
