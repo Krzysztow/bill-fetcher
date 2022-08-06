@@ -3,9 +3,10 @@ import { Construct } from 'constructs';
 import { DockerImageAsset } from 'aws-cdk-lib/aws-ecr-assets';
 import { Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { EcsRunTask, EcsFargateLaunchTarget, LambdaInvoke } from 'aws-cdk-lib/aws-stepfunctions-tasks'
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions'
-import { FargateTaskDefinition, ContainerImage, LogDriver, Cluster } from 'aws-cdk-lib/aws-ecs';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { readFileSync } from 'fs';
@@ -24,12 +25,21 @@ export class BillFetcherStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
+    // use parameter store, as it's cheaper than the secret manager
+    // Note: secure parameter needs to be created manually
+    const hoPassword = ssm.StringParameter.fromSecureStringParameterAttributes(this, 'bill-fetcher-ho-password', {
+      parameterName: '/bill-fetcher/secrets/password',
+    });
+    const hoUsername = ssm.StringParameter.fromSecureStringParameterAttributes(this, 'bill-fetcher-ho-username', {
+      parameterName: '/bill-fetcher/secrets/username',
+    });
+
     const asset = new DockerImageAsset(this, 'bill-fetcher', {
       directory: path.join(__dirname, '..', '..', 'src'),
       file: path.join('fetch-bill', 'Dockerfile'),
     });
 
-    const fargateTaskDefinition = new FargateTaskDefinition(this, 'bill-fetcher-task-def', {
+    const fargateTaskDefinition = new ecs.FargateTaskDefinition(this, 'bill-fetcher-task-def', {
       memoryLimitMiB: 2048,
       cpu: 1024,
     });
@@ -45,24 +55,26 @@ export class BillFetcherStack extends Stack {
       ]
     });
 
-    const cluster = new Cluster(this, 'bill-fetcher-cluster', {
+    const cluster = new ecs.Cluster(this, 'bill-fetcher-cluster', {
       clusterName: "bill-fetcher-cluster",
       enableFargateCapacityProviders: true,
       vpc,
     });
 
     const container = fargateTaskDefinition.addContainer("bill-fetcher-container", {
-      image: ContainerImage.fromDockerImageAsset(asset),
+      image: ecs.ContainerImage.fromDockerImageAsset(asset),
       //command: TODO: override this
       environment: {
-        "HO_USERNAME": "chris.wielgo@gmail.com",
-        "HO_PASSWORD": "",
         "RESULT_BUCKET_NAME": fetcher_bucket.bucketName,
+      },
+      secrets: {
+        "HO_USERNAME": ecs.Secret.fromSsmParameter(hoUsername),
+        "HO_PASSWORD": ecs.Secret.fromSsmParameter(hoPassword),
       },
       memoryLimitMiB: 2048,
       cpu: 1024,
       entryPoint: ["python3", "./aws_fetcher.py"],
-      logging: LogDriver.awsLogs({
+      logging: ecs.LogDriver.awsLogs({
         streamPrefix: 'bill-fetcher-container',
         logRetention: RetentionDays.ONE_DAY,
       }),
