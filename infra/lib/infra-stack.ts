@@ -9,10 +9,8 @@ import * as sfn from 'aws-cdk-lib/aws-stepfunctions'
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import * as py_lambda from '@aws-cdk/aws-lambda-python-alpha';
+import * as fs from 'fs';
 import * as path from 'path';
-
-
 
 
 export class BillFetcherStack extends Stack {
@@ -82,13 +80,34 @@ export class BillFetcherStack extends Stack {
     });
 
     fetcher_bucket.grantWrite(fargateTaskDefinition.taskRole);
- 
-    
-    const billSenderFunction = new py_lambda.PythonFunction(this, 'bill-sender', {
-      entry: path.join(__dirname, '..', '..', 'src', 'bill-sender'),
-      runtime: lambda.Runtime.PYTHON_3_9,
-      index: 'aws_sender.py',
-      handler: 'send_bill'
+
+    const lambdaRuntime = lambda.Runtime.PYTHON_3_9;
+    const lambdaBundlingRootDir = [__dirname, '..', 'lambda-builder'];
+    const bytes = fs.readFileSync(path.join(...lambdaBundlingRootDir, 'Dockerfile'));
+    if (!bytes.indexOf(lambdaRuntime.bundlingImage.image)) {
+      throw Error(`lambda-builder/Dockerfile needs to be based off of ${lambdaRuntime.bundlingImage.image}. Contents: ${bytes}`);
+    }
+    const lambdaBundlingImage = DockerImage.fromBuild(path.join(__dirname, '..', 'lambda-builder'));
+
+    const billSenderFunction = new lambda.Function(this, 'bill-sender', {
+      runtime: lambdaRuntime,
+      handler: 'aws_sender.send_bill',
+      code: lambda.Code.fromAsset(path.join(__dirname, '..', '..', 'src'), {
+        bundling: {
+          image: lambdaBundlingImage,
+          user: '0:0', //this image has problems with pipenv accessing it's system-wide paths (e.g. /.cache)
+          command: [
+            'bash',
+            '-c',
+            [
+              'cd bill-sender',
+              'python3 -m pipenv requirements > /tmp/requirements.txt',
+              `python3 -m pip install -t ${AssetStaging.BUNDLING_OUTPUT_DIR}/ -r /tmp/requirements.txt`,
+              `cp -rp . ${AssetStaging.BUNDLING_OUTPUT_DIR}/`
+            ].join('&&'),
+          ],
+        }
+      }),
     });
 
 
