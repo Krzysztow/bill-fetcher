@@ -1,42 +1,29 @@
 import datetime
 import logging
 import os
-from dataclasses import dataclass
-from datetime import date
 
 import requests
 from selenium import webdriver as wd
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 
-logger = logging.getLogger()
+from bill_info_result import BillInfo, BillInfoResult
+
+logger = logging.getLogger("selenium-fetcher")
 logger.setLevel(logging.INFO)
-
-
-@dataclass(frozen=True)
-class BillInfo:
-    service_name: str
-    invoice_value: str
-    invoice_date: date
-
-
-@dataclass(frozen=True)
-class BillInfoResult:
-    bill_info: BillInfo
-    pdf_location: str
 
 
 class BillFetcher:
     _driver: WebDriver
 
-    def __init__(self, webdriver_location: str):
+    def __init__(self):
         opts = Options()
         opts.add_argument("--headless")
-        srvc = Service(executable_path=webdriver_location)
-        self._driver = wd.Chrome(options=opts, service=srvc)
+        opts.add_argument('--no-sandbox')
+        opts.add_argument('--disable-dev-shm-usage')
+        self._driver = wd.Chrome(options=opts)
 
     def __enter__(self):
         return self
@@ -111,18 +98,17 @@ class BillFetcher:
         with open(out_pdf_path, mode="wb") as f:
             f.write(response.content)
 
-    def get_last_bill_info(self, username, password) -> BillInfoResult:
+    def get_last_bill_info(self, username: str, password: str, pdf_location: str) -> BillInfoResult:
         self._driver.implicitly_wait(10)
         self._driver.get("https://hyperoptic.com/myaccount-login/")
 
         self.accept_cookies()
         self.fill_and_submit_login_form(username, password)
 
-        #WebDriverWait(driver, 10).until(ec.presence_of_element_located((By.ID, "right-column")))
+        # WebDriverWait(driver, 10).until(ec.presence_of_element_located((By.ID, "right-column")))
         right_col = self._driver.find_element(By.ID, "right-column")
         left_col = self._driver.find_element(By.ID, "left-column")
 
-        pdf_location = "/tmp/requests.pdf"
         last_bill_data = self.retrieve_last_bill_data(left_col, right_col)
         self.retrieve_last_bill_pdf(right_col, pdf_location)
 
@@ -132,15 +118,28 @@ class BillFetcher:
         )
 
 
+def ensure_non_empty(value: str, hint_name: str):
+    if not value:
+        raise ValueError(f"{hint_name} can not be empty!")
+
+
+def fetch_bill(username: str, password: str, pdf_location: str) -> BillInfoResult:
+    ensure_non_empty(username, "username[HO_USERNAME]")
+    ensure_non_empty(password, "username[HO_PASSWORD]")
+
+    logger.info("Starting fetcher...")
+    with BillFetcher() as fetcher:
+        result = fetcher.get_last_bill_info(username, password, pdf_location)
+    logger.info(f"Finished successfully: {result}")
+    return result
+
+
 def main():
-    webdriver_location = "/tmp/chromedriver/chromedriver"
     username = os.getenv("HO_USERNAME")
     password = os.getenv("HO_PASSWORD")
 
-    logging.info("Starting fetcher...")
-    with BillFetcher(webdriver_location) as fetcher:
-        result = fetcher.get_last_bill_info(username, password)
-    logging.info(f"Finished successfully: {result}")
+    fetch_bill(username, password, "/tmp/requests.pdf")
 
 
-main()
+if __name__ == "__main__":
+    main()
