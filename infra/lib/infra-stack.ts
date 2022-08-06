@@ -2,14 +2,14 @@ import { Duration, RemovalPolicy, Stack, StackProps, AssetStaging, DockerImage }
 import { Construct } from 'constructs';
 import { DockerImageAsset } from 'aws-cdk-lib/aws-ecr-assets';
 import { Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { EcsRunTask, EcsFargateLaunchTarget, LambdaInvoke } from 'aws-cdk-lib/aws-stepfunctions-tasks'
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions'
 import { FargateTaskDefinition, ContainerImage, LogDriver, Cluster } from 'aws-cdk-lib/aws-ecs';
-import * as path from 'path';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
-import { IntegrationPattern } from 'aws-cdk-lib/aws-stepfunctions';
 import { readFileSync } from 'fs';
+import * as path from 'path';
 
 
 
@@ -34,9 +34,21 @@ export class BillFetcherStack extends Stack {
       cpu: 1024,
     });
 
+    const vpc = new ec2.Vpc(this, 'bill-fetcher-vpc', {
+      cidr: "10.0.0.0/16",
+      natGateways: 0, //we don't want NAT gateway as it generates cost -> run the fetcher ECS tasks in public subnet
+      subnetConfiguration: [
+        {
+          name: "bill-fetcher-public-subnet",
+          subnetType: ec2.SubnetType.PUBLIC,
+        }
+      ]
+    });
+
     const cluster = new Cluster(this, 'bill-fetcher-cluster', {
       clusterName: "bill-fetcher-cluster",
       enableFargateCapacityProviders: true,
+      vpc,
     });
 
     const container = fargateTaskDefinition.addContainer("bill-fetcher-container", {
@@ -97,6 +109,7 @@ export class BillFetcherStack extends Stack {
         containerDefinition: container,
         environment: [{ name: 'TASK_TOKEN', value: sfn.JsonPath.taskToken }],
       }],
+      assignPublicIp: true,
     });
 
     const lambdaTask = new LambdaInvoke(this, 'send-bill-lambda', {
