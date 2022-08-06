@@ -4,11 +4,14 @@ import { DockerImageAsset } from 'aws-cdk-lib/aws-ecr-assets';
 import { Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
-import { EcsRunTask, EcsFargateLaunchTarget } from 'aws-cdk-lib/aws-stepfunctions-tasks'
+import { EcsRunTask, EcsFargateLaunchTarget, LambdaInvoke } from 'aws-cdk-lib/aws-stepfunctions-tasks'
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions'
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as py_lambda from '@aws-cdk/aws-lambda-python-alpha';
 import * as path from 'path';
+
 
 
 
@@ -81,6 +84,14 @@ export class BillFetcherStack extends Stack {
     fetcher_bucket.grantWrite(fargateTaskDefinition.taskRole);
  
     
+    const billSenderFunction = new py_lambda.PythonFunction(this, 'bill-sender', {
+      entry: path.join(__dirname, '..', '..', 'src', 'bill-sender'),
+      runtime: lambda.Runtime.PYTHON_3_9,
+      index: 'aws_sender.py',
+      handler: 'send_bill'
+    });
+
+
     const runTask = new EcsRunTask(this, 'run-bill-fetcher', {
       integrationPattern: sfn.IntegrationPattern.WAIT_FOR_TASK_TOKEN,
       cluster,
