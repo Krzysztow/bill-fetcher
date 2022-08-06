@@ -7,8 +7,9 @@ name = "pypi"
 selenium = "*"
 requests = "*"
 boto3 = "*"
+common = {path = "./../common"}
 
 [dev-packages]
 
 [requires]
-python_version = "3.10"
+python_version = "3"

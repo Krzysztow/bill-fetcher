@@ -9,6 +9,25 @@
   - we could get rid of the dependencies (dependency on the `requests` package) and just use std lib `urlib` (image size reduction)
 - atm potentially I'll use [EcsRunTask](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_stepfunctions_tasks.EcsRunTask.html), but not sure if that supports spot instances 
 
+# Secrets
+
+I store secrets in the SSM Parameters (SecureString). They are cheaper (free?) than the SecretsManager.
+However, they cannot be created in CDK - one needs to do it upfront in [AWS Systems Manager/Parameter Store](https://eu-west-2.console.aws.amazon.com/systems-manager/parameters).
+either via Console or CLI:
+
+```shell
+ws ssm put-parameter --name "/bill-fetcher/secrets/username"  --type "SecureString" --value "${USERNAME}"
+ws ssm put-parameter --name "/bill-fetcher/secrets/password"  --type "SecureString" --value "${PASSWORD}"
+```
+
+Outcome should be something like this:
+
+| Name                             | Tier      | Type                               | Last modified |
+|----------------------------------|-----------|------------------------------------| --- |
+| /bill-fetcher/secrets/password   | Standard  | SecureString	                      | Sat, 06 Aug 2022 13:30:50 GMT |
+| /bill-fetcher/secrets/username	  | Standard  | SecureString	                      | Sat, 06 Aug 2022 13:34:37 GMT |
+
+
 # Running:
 
 ### Running directly with python:

@@ -5,9 +5,6 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 
-import main_fetcher as fetcher
-from bill_info_result import BillInfoEncoder, BillInfoResult
-
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -35,20 +32,31 @@ def main():
     username = os.getenv("HO_USERNAME")
     password = os.getenv("HO_PASSWORD")
     bucket = os.getenv("RESULT_BUCKET_NAME")
-
-    pdf_location = "/tmp/bill.pdf"
-    result = fetcher.fetch_bill(username, password, pdf_location)
-
-    bucket_pdf_location = result.bill_info.invoice_date.isoformat() + "/bill.pdf"
-    bucket_json_location = result.bill_info.invoice_date.isoformat() + "/bill_info.json"
-
-    upload_to_s3(pdf_location, bucket, bucket_pdf_location)
-
-    bill_fetch_result = BillInfoResult(bill_info=result.bill_info,
-                                       pdf_location=f"arn:aws:s3:::{bucket}/{bucket_pdf_location}")
-    bill_info_json = json.dumps(obj=bill_fetch_result, default=BillInfoEncoder.json_encode)
-    upload_bill_info(bill_info_json, bucket, bucket_json_location)
     task_token = os.getenv("TASK_TOKEN")
+
+    # pdf_location = "/tmp/bill.pdf"
+    # result = fetcher.fetch_bill(username, password, pdf_location)
+    #
+    # bucket_pdf_location = result.bill_info.invoice_date.isoformat() + "/bill.pdf"
+    # bucket_json_location = result.bill_info.invoice_date.isoformat() + "/bill_info.json"
+    #
+    # upload_to_s3(pdf_location, bucket, bucket_pdf_location)
+    #
+    # bill_fetch_result = BillInfoResult(bill_info=result.bill_info,
+    #                                    pdf_location=f"arn:aws:s3:::{bucket}/{bucket_pdf_location}")
+    # bill_info_json = json.dumps(obj=bill_fetch_result, default=BillInfoEncoder.json_encode)
+    # upload_bill_info(bill_info_json, bucket, bucket_json_location)
+
+    bill_info_json = """
+    {
+       "bill_info":{
+          "service_name":"150Mb Fibre Connection - Broadband Only",
+          "invoice_date":"2022-07-10",
+          "invoice_value":"\u00a329.00"
+       },
+       "pdf_location":"arn:aws:s3:::billfetcherstack-billfetcherbucket83d4f83e-w2t4ey3ronlp/2022-07-10/bill.pdf"
+    }
+    """
     client = boto3.client('stepfunctions')
     client.send_task_success(
         taskToken=task_token,
