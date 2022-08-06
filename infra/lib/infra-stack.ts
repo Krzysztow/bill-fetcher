@@ -123,10 +123,18 @@ export class BillFetcherStack extends Stack {
       assignPublicIp: true,
     });
 
+    const lambdaTask = new LambdaInvoke(this, 'send-bill-lambda', {
+      lambdaFunction: billSenderFunction,
+      timeout: Duration.seconds(30),
+    });
+
+
     const success = new sfn.Succeed(this, 'We did it!');
     const fail = new sfn.Fail(this, "Failed!");
 
-    const definition = runTask.next(success);
+    const definition = runTask.
+      next(lambdaTask).
+      next(success);
 
     const billFetcherSm = new sfn.StateMachine(this, 'bill-fetcher-sm', {
       definition,
@@ -134,6 +142,5 @@ export class BillFetcherStack extends Stack {
     });
 
     billFetcherSm.grantTaskResponse(fargateTaskDefinition.taskRole);
-
   }
 }
