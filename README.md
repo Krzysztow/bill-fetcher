@@ -27,6 +27,29 @@ Outcome should be something like this:
 | /bill-fetcher/secrets/password   | Standard  | SecureString	                      | Sat, 06 Aug 2022 13:30:50 GMT |
 | /bill-fetcher/secrets/username	  | Standard  | SecureString	                      | Sat, 06 Aug 2022 13:34:37 GMT |
 
+# Verifying email recipient for lambda
+
+This needs to be done as my AWS account is in the Sandbox Environment (haven't sent email limit increase request).
+is in early stages and not fully verified.
+
+1) Send verification request to $RECIPIENT_EMAIL_ADDRESS
+```shell
+aws ses verify-email-identity --email-address $RECIPIENT_EMAIL_ADDRESS
+```
+2) Check it's on the identities list:
+```shell
+aws ses list-identities --identity-type EmailAddress
+```
+3) Open email inbox for RECIPIENT_EMAIL_ADDRESS and click on the verification link
+4) Validate status:
+
+```shell
+$ aws ses get-identity-verification-attributes --identities $RECIPIENT_EMAIL_ADDRESS | \
+    jq '.VerificationAttributes["chriswielgo+ses@gmail.com"].VerificationStatus'
+```
+Expected output should result in `"Success"`
+```
+
 
 # Running:
 
@@ -35,7 +58,7 @@ Outcome should be something like this:
 HO_PASSWORD=<hyperoptic_password> HO_USERNAME=<hyperoptic_username> python3 fetch-bill/main_fetcher.py
 ``` 
 
-### Runnigng with docker:
+### Running with docker:
 ```bash
 read -s HO_PASSWORD
 
@@ -48,3 +71,16 @@ docker container run -it -m2g --cpus=1 -eHO_USERNAME=chris.wielgo@gmail.com -eHO
 
 At the moment output is provided to `/tmp/requests.pdf`
 
+### Testing lambda
+
+```
+cdk synth
+# check ./cdk.out/BillFetcherStack.template.json for a lambda identifier - e.g. 'billsender283F6E25'
+sam local invoke -t ./cdk.out/BillFetcherStack.template.json --event ../src/bill-sender/event.json billsender283F6E25
+```
+
+### Configuring PyCharm
+#### Configure subprojects
+We have one repo and multiple (2) python subprojects, each using `pipenv`. Follow instructions [here](https://youtrack.jetbrains.com/issue/PY-46314/Multiple-Virtual-Environments-via-pipenv-Pipfile-per-project#focus=Comments-27-5550866.0-0) to property configure PyCharm project with attached subprojects.
+#### Configure Debugging of lambda with AWS Toolkit
+Seems like atm it only works, if was configured with SAM teamplate.yml, not from CDK.
