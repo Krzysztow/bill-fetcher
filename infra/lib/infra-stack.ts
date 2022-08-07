@@ -3,6 +3,8 @@ import * as cdk from 'aws-cdk-lib';
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions'
 import * as sfn_tasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
+import * as events from 'aws-cdk-lib/aws-events'
+import * as targets from 'aws-cdk-lib/aws-events-targets'
 import { FetchingStepSubStack } from './bill-fetching-stack';
 import { EmailSendingStepSubStack } from './email-sending-stack';
 
@@ -51,5 +53,11 @@ export class BillFetcherStack extends cdk.Stack {
 
     // we need to allow fetcher to send Task Response to the Step Function execution engine
     billFetcherSm.grantTaskResponse(fetchingStep.fargateTaskDefinition.taskRole);
+
+    const eventRule = new events.Rule(this, 'run-fetcher-on-15th', {
+      schedule: events.Schedule.cron({ minute: '0', hour: '20', day: '15' }),//we're billed on 11th, so that should always be available in the dashboard
+    });
+
+    eventRule.addTarget(new targets.SfnStateMachine(billFetcherSm));
   }
 }
