@@ -13,7 +13,7 @@ export class BillFetcherStack extends cdk.Stack {
     const fetcherBucket = new s3.Bucket(this, 'bill-fetcher-bucket', {
       encryption: s3.BucketEncryption.S3_MANAGED,
       enforceSSL: true,
-      versioned: true,
+      versioned: false,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
