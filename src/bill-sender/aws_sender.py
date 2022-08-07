@@ -2,6 +2,9 @@ import json
 import logging
 import re
 from dataclasses import dataclass
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 import boto3
 from bill_info_result import BillInfoDecoder, BillInfoResult
@@ -13,8 +16,7 @@ BUCKET_ARN_REGEX = re.compile(r"""arn:aws:s3:::([^/]*)/(.*)""")
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-
-# boto3.set_stream_logger('', logging.DEBUG)
+boto3.set_stream_logger('', logging.DEBUG)
 
 
 @dataclass(frozen=True)
@@ -59,30 +61,37 @@ Best regards,
     )
 
 
-def send_email(bill_info: BillInfoResult):
+def send_email(bill_info: BillInfoResult, local_pdf_path: str):
+    subject = "Broadband expenses {billing_period}".format(billing_period=bill_info.bill_info.invoice_date)
+    recipient = "chriswielgo+ses@gmail.com"
+    sender = "chriswielgo+ses@gmail.com"
+
+    message = MIMEMultipart()
+    message['Subject'] = subject
+    message['From'] = sender
+    message['To'] = recipient
+
+    part = MIMEText(email_text(), 'plain')
+    part.set_charset(CHARSET)
+    message.attach(part)
+
+    with open(local_pdf_path, 'rb') as pdf:
+        part = MIMEApplication(pdf.read(), 'pdf')
+        part.add_header(
+            'Content-Disposition',
+            'attachment',
+            filename=f"{bill_info.bill_info.service_name}-{bill_info.bill_info.invoice_date}.pdf")
+        message.attach(part)
+
     ses = boto3.client("ses")
-    response = ses.send_email(
-        Destination={
-            "ToAddresses": [
-                "chriswielgo+ses@gmail.com",
-            ],
-        },
-        Message={
-            "Body": {
-                "Text": {
-                    "Charset": CHARSET,
-                    "Data": email_text(),
-                }
-            },
-            "Subject": {
-                "Charset": CHARSET,
-                "Data": "Broadband expenses {billing_period}".format(billing_period=bill_info.bill_info.invoice_date),
-            },
-        },
-        Source="chriswielgo+ses@gmail.com",
+
+    response = ses.send_raw_email(
+        Destinations=[recipient],
+        Source=sender,
+        RawMessage={'Data': message.as_string()}
     )
 
-    print("Sent email", json.dumps(response))
+    print("Sent email: ", json.dumps(response))
 
 
 def send_bill(event: dict, _):
@@ -99,6 +108,4 @@ def send_bill(event: dict, _):
     local_pdf_path = "/tmp/bill.pdf"
     download_from_s3(pdf_bucket_location.bucket_name, pdf_bucket_location.object_path, local_pdf_path)
 
-    send_email(bill_info)
-
-
+    send_email(bill_info, local_pdf_path)
