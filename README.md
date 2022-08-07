@@ -27,6 +27,29 @@ Outcome should be something like this:
 | /bill-fetcher/secrets/password   | Standard  | SecureString	                      | Sat, 06 Aug 2022 13:30:50 GMT |
 | /bill-fetcher/secrets/username	  | Standard  | SecureString	                      | Sat, 06 Aug 2022 13:34:37 GMT |
 
+# Verifying email recipient for lambda
+
+This needs to be done as my AWS account is in the Sandbox Environment (haven't sent email limit increase request).
+is in early stages and not fully verified.
+
+1) Send verification request to $RECIPIENT_EMAIL_ADDRESS
+```shell
+aws ses verify-email-identity --email-address $RECIPIENT_EMAIL_ADDRESS
+```
+2) Check it's on the identities list:
+```shell
+aws ses list-identities --identity-type EmailAddress
+```
+3) Open email inbox for RECIPIENT_EMAIL_ADDRESS and click on the verification link
+4) Validate status:
+
+```shell
+$ aws ses get-identity-verification-attributes --identities $RECIPIENT_EMAIL_ADDRESS | \
+    jq '.VerificationAttributes["chriswielgo+ses@gmail.com"].VerificationStatus'
+```
+Expected output should result in `"Success"`
+```
+
 
 # Running:
 

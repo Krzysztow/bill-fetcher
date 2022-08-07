@@ -7,6 +7,7 @@ import boto3
 from bill_info_result import BillInfoDecoder, BillInfoResult
 from botocore.exceptions import ClientError
 
+CHARSET = "UTF-8"
 BUCKET_ARN_REGEX = re.compile(r"""arn:aws:s3:::([^/]*)/(.*)""")
 
 logger = logging.getLogger()
@@ -44,6 +45,46 @@ def parse_bucket_arn(bucket_arn: str) -> BucketArnParseResult:
     return BucketArnParseResult(bucket_name=match.group(1), object_path=match.group(2))
 
 
+def email_text():
+    return """Hello {recipient_name},
+
+Please find attached Broadband Expenses claim form for {billing_period} with receipt.
+As last time, I made sure it's capped at 20£ in the "Total" column and the "Other" column contains real value.
+
+Best regards,
+{my_name}""".format(
+        recipient_name="Krzysztof Recipient",
+        billing_period="11/07-11/08/2022",
+        my_name="Krzysztof Wielgo"
+    )
+
+
+def send_email(bill_info: BillInfoResult):
+    ses = boto3.client("ses")
+    response = ses.send_email(
+        Destination={
+            "ToAddresses": [
+                "chriswielgo+ses@gmail.com",
+            ],
+        },
+        Message={
+            "Body": {
+                "Text": {
+                    "Charset": CHARSET,
+                    "Data": email_text(),
+                }
+            },
+            "Subject": {
+                "Charset": CHARSET,
+                "Data": "Broadband expenses {billing_period}".format(billing_period=bill_info.bill_info.invoice_date),
+            },
+        },
+        Source="chriswielgo+ses@gmail.com",
+    )
+
+    print("Sent email", json.dumps(response))
+
+
 def send_bill(event: dict, _):
     event_json = json.dumps(
         event)  # this seems silly, but we already have logic for serialization/deserialization from JSON
@@ -57,3 +98,7 @@ def send_bill(event: dict, _):
     print("Parsed PDF location", pdf_bucket_location)
     local_pdf_path = "/tmp/bill.pdf"
     download_from_s3(pdf_bucket_location.bucket_name, pdf_bucket_location.object_path, local_pdf_path)
+
+    send_email(bill_info)
+
+

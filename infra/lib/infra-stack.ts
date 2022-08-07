@@ -1,4 +1,4 @@
-import { Duration, RemovalPolicy, Stack, StackProps, AssetStaging, DockerImage } from 'aws-cdk-lib';
+import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { DockerImageAsset } from 'aws-cdk-lib/aws-ecr-assets';
 import { Bucket, BucketEncryption } from 'aws-cdk-lib/aws-s3';
@@ -11,17 +11,18 @@ import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 
 
-export class BillFetcherStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+export class BillFetcherStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     const fetcherBucket = new Bucket(this, 'bill-fetcher-bucket', {
       encryption: BucketEncryption.S3_MANAGED,
       enforceSSL: true,
       versioned: true,
-      removalPolicy: RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     // use parameter store, as it's cheaper than the secret manager
@@ -87,7 +88,7 @@ export class BillFetcherStack extends Stack {
     if (!bytes.indexOf(lambdaRuntime.bundlingImage.image)) {
       throw Error(`lambda-builder/Dockerfile needs to be based off of ${lambdaRuntime.bundlingImage.image}. Contents: ${bytes}`);
     }
-    const lambdaBundlingImage = DockerImage.fromBuild(path.join(__dirname, '..', 'lambda-builder'));
+    const lambdaBundlingImage = cdk.DockerImage.fromBuild(path.join(__dirname, '..', 'lambda-builder'));
 
     const billSenderFunction = new lambda.Function(this, 'bill-sender', {
       runtime: lambdaRuntime,
@@ -102,8 +103,8 @@ export class BillFetcherStack extends Stack {
             [
               'cd bill-sender',
               'python3 -m pipenv requirements > /tmp/requirements.txt',
-              `python3 -m pip install -t ${AssetStaging.BUNDLING_OUTPUT_DIR}/ -r /tmp/requirements.txt`,
-              `cp -rp . ${AssetStaging.BUNDLING_OUTPUT_DIR}/`
+              `python3 -m pip install -t ${cdk.AssetStaging.BUNDLING_OUTPUT_DIR}/ -r /tmp/requirements.txt`,
+              `cp -rp . ${cdk.AssetStaging.BUNDLING_OUTPUT_DIR}/`
             ].join('&&'),
           ],
         }
@@ -125,11 +126,16 @@ export class BillFetcherStack extends Stack {
 
     const lambdaTask = new LambdaInvoke(this, 'send-bill-lambda', {
       lambdaFunction: billSenderFunction,
-      timeout: Duration.seconds(30),
+      timeout: cdk.Duration.seconds(30),
     });
 
     fetcherBucket.grantRead(billSenderFunction);
-
+    billSenderFunction.addToRolePolicy(new PolicyStatement({
+      actions: ['ses:SendEmail', 'ses:SendRawEmail'],
+      //chriswielgo+ses.com needs to correspond to sending identity - maybe I should introduce env variable injected from here
+      resources: [`arn:aws:ses:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:identity/chriswielgo+ses@gmail.com`],
+      effect: Effect.ALLOW,
+    }));
 
     const success = new sfn.Succeed(this, 'We did it!');
     const fail = new sfn.Fail(this, "Failed!");
@@ -140,7 +146,7 @@ export class BillFetcherStack extends Stack {
 
     const billFetcherSm = new sfn.StateMachine(this, 'bill-fetcher-sm', {
       definition,
-      timeout: Duration.minutes(1),
+      timeout: cdk.Duration.minutes(1),
     });
 
     billFetcherSm.grantTaskResponse(fargateTaskDefinition.taskRole);
