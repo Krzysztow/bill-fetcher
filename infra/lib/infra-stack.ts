@@ -17,7 +17,7 @@ export class BillFetcherStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const fetcher_bucket = new Bucket(this, 'bill-fetcher-bucket', {
+    const fetcherBucket = new Bucket(this, 'bill-fetcher-bucket', {
       encryption: BucketEncryption.S3_MANAGED,
       enforceSSL: true,
       versioned: true,
@@ -64,7 +64,7 @@ export class BillFetcherStack extends Stack {
       image: ecs.ContainerImage.fromDockerImageAsset(asset),
       //command: TODO: override this
       environment: {
-        "RESULT_BUCKET_NAME": fetcher_bucket.bucketName,
+        "RESULT_BUCKET_NAME": fetcherBucket.bucketName,
       },
       secrets: {
         "HO_USERNAME": ecs.Secret.fromSsmParameter(hoUsername),
@@ -79,7 +79,7 @@ export class BillFetcherStack extends Stack {
       }),
     });
 
-    fetcher_bucket.grantWrite(fargateTaskDefinition.taskRole);
+    fetcherBucket.grantWrite(fargateTaskDefinition.taskRole);
 
     const lambdaRuntime = lambda.Runtime.PYTHON_3_9;
     const lambdaBundlingRootDir = [__dirname, '..', 'lambda-builder'];
@@ -127,6 +127,8 @@ export class BillFetcherStack extends Stack {
       lambdaFunction: billSenderFunction,
       timeout: Duration.seconds(30),
     });
+
+    fetcherBucket.grantRead(billSenderFunction);
 
 
     const success = new sfn.Succeed(this, 'We did it!');
