@@ -2,6 +2,7 @@ import { Construct } from 'constructs';
 import * as cdk from 'aws-cdk-lib';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as logs from 'aws-cdk-lib/aws-logs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 
 import * as fs from 'fs';
@@ -46,6 +47,8 @@ export class EmailSendingStepSubStack extends Construct {
           ],
         }
       }),
+      timeout: cdk.Duration.minutes(1),
+      logRetention: logs.RetentionDays.FIVE_DAYS,
     });
 
     directProps.fetcherBucket.grantRead(this.billSenderFunction);

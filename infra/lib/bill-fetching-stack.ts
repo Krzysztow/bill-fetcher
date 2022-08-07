@@ -75,7 +75,7 @@ export class FetchingStepSubStack extends Construct {
       entryPoint: ["python3", "./aws_fetcher.py"],
       logging: ecs.LogDriver.awsLogs({
         streamPrefix: 'bill-fetcher-container',
-        logRetention: logs.RetentionDays.ONE_DAY,
+        logRetention: logs.RetentionDays.FIVE_DAYS,
       }),
     });
 
