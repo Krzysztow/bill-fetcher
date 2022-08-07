@@ -62,7 +62,8 @@ HO_PASSWORD=<hyperoptic_password> HO_USERNAME=<hyperoptic_username> python3 fetc
 ```bash
 read -s HO_PASSWORD
 
-docker build -t fetcher .
+cd src
+docker build -t fetcher -f fetch-bill/Dockerfile . 
 
 docker container run -it -eHO_USERNAME=chris.wielgo@gmail.com -eHO_PASSWORD=$HO_PASSWORD --rm fetcher
 # or like below with CPU & mem constraints
